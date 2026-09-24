@@ -39,7 +39,9 @@ The application combines screenshot text extraction, structured risk analysis, a
 - **Readable results** — components for concern levels, scam categories, warning signs, and recommended actions.
 - **Replaceable decision engine** — a local keyword heuristic and an adapter for an external JEV endpoint.
 - **Fallback explanations** — predefined guidance when OpenAI is unconfigured or the explanation request fails.
-- **Responsive interface** — a teal palette, clear typography, and reduced-motion styles.
+- **Responsive interface** — a two-column desktop workspace, stacked mobile cards, animated transitions, and reduced-motion support.
+- **Engaging processing state** — an animated scanner, rotating safety tips, elapsed time, and cancellation. The animation is indeterminate; it does not invent completion percentages.
+- **Risk overview** — an animated scam-likelihood ring alongside risk-score confidence, the 0–4 score, and urgency detection.
 
 > [!IMPORTANT]
 > This repository is an early development foundation. The home, analysis API, result, and about routes are wired up. The default decision engine is a keyword heuristic; evaluation and production hardening remain on the [development checklist](#development-status).
@@ -123,7 +125,9 @@ Risk scores use the Postman rubric from `0` to `4`: none, minor, moderate, stron
 
 ### JEV integration
 
-[`analyzeMessage()`](src/lib/jev.ts) is the decision-engine entry point. With `JEV_API_KEY` configured, it sends `{ "model": "jev-latest", "state": "...", "questions": { ... } }` using bearer authentication. The primary questions are `scam_category`, `risk_score`, and `urgency_flag`, matching the supplied Postman rubric. Six additional yes/no questions provide warning signals for explanations. The adapter validates TypeSafe's `answers` before converting them to [`JevResult`](src/types/analysis.ts).
+[`analyzeMessage()`](src/lib/jev.ts) is the decision-engine entry point. With `JEV_API_KEY` configured, it sends `{ "model": "jev-latest", "state": "...", "questions": { ... } }` using bearer authentication. The primary questions are `scam_category`, `risk_score`, and `urgency_flag`, matching the supplied Postman rubric. Six additional yes/no questions provide warning signals for explanations, and `scam_likelihood` asks for an independent estimate of whether the message is a scam attempt. The adapter validates TypeSafe's `answers` before converting them to [`JevResult`](src/types/analysis.ts).
+
+The result ring uses `scam_likelihood.noul`; it is not calculated by dividing the risk score by four. `confidence` comes from the risk-score answer and describes the model's certainty in that rating, while `urgencyProbability` comes from `urgency_flag.noul`. These are model estimates, not proof of fraud. Demo and older results show unavailable metrics without inventing percentages. The browser keeps submitted input when an analysis fails or is canceled; cancellation stops waiting for the response but may not stop processing already underway at a provider.
 
 To test **this app** in Postman, send `POST http://localhost:3000/api/analyze` with `Content-Type: application/json` and:
 
