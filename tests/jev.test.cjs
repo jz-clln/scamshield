@@ -21,12 +21,12 @@ function load(relative, overrides = {}) {
 }
 
 const { analyzeMessage, JevError } = load('src/lib/jev.ts');
-const { scoreToConcernLevel } = load('src/lib/concern-level.ts');
+const { deriveConcernLevel } = load('src/lib/concern-level.ts');
 const originalFetch = global.fetch;
 const originalEnv = { ...process.env };
 after(() => {
   global.fetch = originalFetch;
-  for (const key of ['JEV_API_KEY', 'JEV_API_URL', 'JEV_MODEL']) {
+  for (const key of ['JEV_API_KEY', 'JEV_API_URL', 'JEV_MODEL', 'OPENAI_API_KEY']) {
     if (originalEnv[key] === undefined) delete process.env[key];
     else process.env[key] = originalEnv[key];
   }
@@ -40,10 +40,10 @@ function configure() {
 
 function response() {
   const answers = {
-    scam_category: { type: 'choice', choice: 'unknown' },
+    scam_category: { type: 'choice', choice: 'unknown', confidence: 0.8 },
     risk_score: { type: 'score', score: 2.77, confidence: 0.83 },
   };
-  for (const key of ['scam_likelihood', 'urgency_flag', 'financial_request', 'sensitive_information', 'impersonation', 'suspicious_link', 'threat', 'reward']) {
+  for (const key of ['scam_likelihood', 'urgency_flag', 'financial_request', 'sensitive_information', 'impersonation', 'suspicious_link', 'threat', 'reward', 'payment_change']) {
     answers[key] = { type: 'noul', noul: 0.1 };
   }
   return { answers };
@@ -58,7 +58,7 @@ test('sends Postman primary questions and preserves weighted 0-4 score', async (
     assert.equal(body.model, 'jev-latest');
     assert.equal(body.state, 'Example message');
     assert.equal(body.questions.risk_score.criteria.length, 5);
-    assert.deepEqual(Object.keys(body.questions.scam_category.criteria), ['phishing', 'financial_fraud', 'impersonation', 'prize_scam', 'delivery_scam', 'job_scam', 'legitimate', 'unknown']);
+    assert.deepEqual(Object.keys(body.questions.scam_category.criteria), ['phishing', 'financial_fraud', 'impersonation', 'prize_scam', 'delivery_scam', 'job_scam', 'investment_scam', 'marketplace_scam', 'account_threat', 'legitimate', 'unknown']);
     assert.equal(body.questions.urgency_flag.type, 'noul');
     return Response.json(response());
   };
@@ -145,15 +145,16 @@ test('rejects partial configuration instead of silently using demo analysis', as
 test('unconfigured demo mode remains available', async () => {
   for (const key of ['JEV_API_KEY', 'JEV_API_URL', 'JEV_MODEL']) delete process.env[key];
   global.fetch = async () => { throw new Error('must not fetch'); };
-  assert.equal((await analyzeMessage('Hello friend')).riskScore, 0);
+  assert.equal(deriveConcernLevel(await analyzeMessage('Hello friend')), 'low');
 });
 
-test('concern levels follow the five-level rubric', () => {
-  assert.equal(scoreToConcernLevel(0), 'low');
-  assert.equal(scoreToConcernLevel(1), 'needs_verification');
-  assert.equal(scoreToConcernLevel(2.77), 'needs_verification');
-  assert.equal(scoreToConcernLevel(3), 'high');
-  assert.equal(scoreToConcernLevel(4), 'high');
+test('concern levels combine probability and supporting signals', async () => {
+  configure();
+  global.fetch = async () => Response.json(response());
+  const result = await analyzeMessage('Example');
+  assert.equal(deriveConcernLevel(result), 'low');
+  assert.equal(deriveConcernLevel({ ...result, scamProbability: 0.5 }), 'needs_verification');
+  assert.equal(deriveConcernLevel({ ...result, sensitiveInformationProbability: 0.9, suspiciousLinkProbability: 0.9 }), 'high');
 });
 
 test('API validates input, reports JEV failures, and returns successful analysis', async () => {
@@ -176,5 +177,47 @@ test('API validates input, reports JEV failures, and returns successful analysis
   assert.equal(success.status, 200);
   const result = await success.json();
   assert.equal(result.riskScore, 2.77);
-  assert.equal(result.concernLevel, 'needs_verification');
+  assert.equal(result.concernLevel, 'low');
+});
+
+test('POST handles screenshots, extraction failures, fallback explanations, and malformed requests', async () => {
+  configure();
+  process.env.OPENAI_API_KEY = 'test-image-key';
+  global.fetch = async () => Response.json(response());
+  let extractionCalls = 0;
+  let readable = true;
+  const explanation = { summary: 'Fallback', warningSigns: [], recommendedActions: [] };
+  const { POST } = load('src/app/api/analyze/route.ts', {
+    '@/lib/jev': { analyzeMessage, JevError },
+    '@/lib/openai': {
+      extractTextFromImage: async (image, mime) => {
+        extractionCalls++;
+        assert.equal(image, 'aGVsbG8=');
+        assert.equal(mime, 'image/png');
+        return { extractedText: 'Example screenshot message', readability: readable ? 'clear' : 'unclear' };
+      },
+      explainResult: async () => { throw new Error('Provider unavailable'); },
+      fallbackExplanation: () => explanation,
+    },
+  });
+  assert.equal(typeof POST, 'function', 'The route must export a POST handler');
+  const request = body => new Request('http://localhost/api/analyze', { method: 'POST', body: JSON.stringify(body) });
+  const image = { mode: 'image', imageBase64: 'aGVsbG8=', mimeType: 'image/png' };
+  const success = await POST(request(image));
+  assert.equal(success.status, 200);
+  const result = await success.json();
+  assert.equal(result.extractedText, 'Example screenshot message');
+  assert.equal(result.usedFallbackExplanation, true);
+  assert.deepEqual(result.explanation, explanation);
+  readable = false;
+  assert.equal((await POST(request(image))).status, 400);
+  const calls = extractionCalls;
+  for (const body of [{ ...image, mimeType: 'text/html' }, { ...image, imageBase64: 'bad!' }, { ...image, imageBase64: '' }]) {
+    assert.equal((await POST(request(body))).status, 400);
+  }
+  assert.equal((await POST(request({ ...image, imageBase64: 'A'.repeat(4 * 1024 * 1024 + 4) }))).status, 413);
+  assert.equal(extractionCalls, calls);
+  delete process.env.OPENAI_API_KEY;
+  assert.equal((await POST(request(image))).status, 503);
+  assert.equal((await POST(new Request('http://localhost/api/analyze', { method: 'POST', body: '{' }))).status, 400);
 });
