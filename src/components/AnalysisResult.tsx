@@ -6,23 +6,17 @@ import { RiskGauge } from "./RiskGauge";
 import { Icon } from "./Icon";
 
 const CATEGORY_LABELS: Record<ScamCategory, string> = {
+  phishing: "Phishing",
   financial_fraud: "Financial Fraud",
+  impersonation: "Impersonation",
   prize_scam: "Prize Scam",
   delivery_scam: "Delivery Scam",
-  legitimate: "No Scam Indicators Detected",
-  unknown: "Unknown Category",
-  phishing: "Phishing",
-  payment_request: "Suspicious Payment Request",
-  impersonation: "Impersonation",
-  fake_reward: "Fake Reward",
-  account_threat: "Account Threat",
   job_scam: "Job Scam",
   investment_scam: "Investment Scam",
   marketplace_scam: "Marketplace Scam",
-  suspicious_link: "Suspicious Link",
-  other: "Other",
-  unclear: "Unclear",
-  none: "No Category Detected",
+  account_threat: "Account Threat",
+  legitimate: "Likely Legitimate",
+  unknown: "Unknown Category",
 };
 
 export function AnalysisResult({ result }: { result: AnalysisResultType }) {
