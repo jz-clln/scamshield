@@ -141,7 +141,7 @@ If the external decision engine fails, the handler returns an error. If only the
 
 ### Input handling
 
-Text validation allows up to **4,000 characters**. The upload interface accepts **PNG, JPG, and WEBP** files up to **8 MB**. Image size and format checks currently run in the client; equivalent server validation remains to be added.
+Text validation allows up to **4,000 characters**. Screenshot uploads accept **PNG, JPG, and WEBP** files up to **3 MB**, keeping base64 JSON requests below Vercel's 4.5 MB payload limit. The client checks file size and type; the API also validates the declared MIME type, encoded size, and base64 format before extraction. Screenshot reading requires `OPENAI_API_KEY` on the server.
 
 ## Project structure
 
