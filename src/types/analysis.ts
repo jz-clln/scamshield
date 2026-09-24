@@ -4,6 +4,11 @@
 export type InputMode = "image" | "text";
 
 export type ScamCategory =
+  | "financial_fraud"
+  | "prize_scam"
+  | "delivery_scam"
+  | "legitimate"
+  | "unknown"
   | "phishing"
   | "payment_request"
   | "impersonation"
@@ -37,7 +42,7 @@ export interface JevResult {
   suspiciousLink: boolean;
   threat: boolean;
   reward: boolean;
-  riskScore: number; // 0.0 - 3.0
+  riskScore: number; // 0.0 - 4.0 (Postman/JEV rubric)
 }
 
 // Step 6 output — OpenAI explanation
