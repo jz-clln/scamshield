@@ -84,7 +84,7 @@ export function ImageUploader({
         <p className="text-sm text-gabi/55 mt-1">
           Tap to browse or drag it here
         </p>
-        <span className="upload-formats">PNG, JPG, WEBP · Up to 8 MB</span>
+        <span className="upload-formats">PNG, JPG, WEBP · Up to 3 MB</span>
         <input
           ref={inputRef}
           type="file"
