@@ -2,7 +2,8 @@
 // /api/analyze route (source of truth — never trust the client alone).
 
 export const MAX_TEXT_LENGTH = 4000;
-export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
+// Base64 expands a 3 MiB file to 4 MiB, below Vercel's 4.5 MB body limit.
+export const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = [
   "image/png",
   "image/jpeg",
@@ -43,7 +44,7 @@ export function validateImageFile(file: File): ValidationResult {
   if (file.size > MAX_IMAGE_BYTES) {
     return {
       valid: false,
-      error: "That image is too large. Upload a file under 8MB.",
+      error: "That image is too large. Upload a file up to 3 MB.",
     };
   }
 
