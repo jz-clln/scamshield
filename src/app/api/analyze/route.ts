@@ -1,100 +1,189 @@
-import { NextRequest, NextResponse } from "next/server";
-import { extractTextFromImage, explainResult, fallbackExplanation } from "@/lib/openai";
-import { analyzeMessage, JevError } from "@/lib/jev";
-import { scoreToConcernLevel } from "@/lib/concern-level";
-import { cleanMessageText, validateTextInput } from "@/lib/validation";
-import { AnalyzeRequest, AnalyzeError, AnalysisResult } from "@/types/analysis";
+// File: src/types/analysis.ts
 
-export async function POST(req: NextRequest) {
-  let body: AnalyzeRequest;
+// ---------------------------------------------------------------------
+// Concern Level
+// ---------------------------------------------------------------------
 
-  try {
-    body = await req.json();
-  } catch {
-    return errorResponse("validation", "Invalid request body.");
-  }
+export type ConcernLevel =
+  | "low"
+  | "needs_verification"
+  | "high";
 
-  if (!body || typeof body !== "object" || !["text", "image"].includes(body.mode)) {
-    return errorResponse("validation", 'Use { "mode": "text", "text": "your message" } or image mode. The JEV Postman payload goes directly to TypeSafe, not /api/analyze.');
-  }
-  if ((body.mode === "text" && typeof body.text !== "string") ||
-      (body.mode === "image" && (typeof body.imageBase64 !== "string" || typeof body.mimeType !== "string"))) {
-    return errorResponse("validation", "Message text and image fields must be strings.");
-  }
+// ---------------------------------------------------------------------
+// Scam Categories
+// ---------------------------------------------------------------------
 
-  // ---- Step 1/2: get message text, from image or direct paste ----
-  let extractedText = "";
+export type ScamCategory =
+  | "phishing"
+  | "financial_fraud"
+  | "impersonation"
+  | "prize_scam"
+  | "delivery_scam"
+  | "job_scam"
+  | "investment_scam"
+  | "marketplace_scam"
+  | "account_threat"
+  | "legitimate"
+  | "unknown";
 
-  if (body.mode === "image") {
-    if (!body.imageBase64 || !body.mimeType) {
-      return errorResponse("validation", "No image was provided.");
+// ---------------------------------------------------------------------
+// API Request
+// ---------------------------------------------------------------------
+
+export type AnalyzeRequest =
+  | {
+      mode: "text";
+      text: string;
+
+      // Prevent accidental use of image fields in text mode.
+      imageBase64?: never;
+      mimeType?: never;
     }
+  | {
+      mode: "image";
+      imageBase64: string;
+      mimeType: string;
 
-    try {
-      const extracted = await extractTextFromImage(body.imageBase64, body.mimeType);
+      // Prevent accidental use of text field in image mode.
+      text?: never;
+    };
 
-      if (extracted.readability === "unclear" || !extracted.extractedText.trim()) {
-        return errorResponse(
-          "extraction",
-          "We could not clearly read this image. Upload a clearer screenshot or paste the message manually."
-        );
-      }
+// ---------------------------------------------------------------------
+// API Error
+// ---------------------------------------------------------------------
 
-      extractedText = extracted.extractedText;
-    } catch {
-      return errorResponse(
-        "extraction",
-        "We could not read the message right now. Please try again or paste the message manually."
-      );
-    }
-  } else {
-    extractedText = body.text ?? "";
-  }
+export interface AnalyzeError {
+  error: true;
 
-  // ---- Step 3: clean + validate ----
-  const cleaned = cleanMessageText(extractedText);
-  const validation = validateTextInput(cleaned);
-  if (!validation.valid) {
-    return errorResponse("validation", validation.error ?? "Invalid input.");
-  }
+  stage:
+    | "validation"
+    | "extraction"
+    | "jev"
+    | "explanation";
 
-  // ---- Step 4: JEV structured decision ----
-  // JEV is the source of truth for the risk decision. If it fails, we do
-  // not let OpenAI improvise a decision in its place (spec section 24).
-  let jev;
-  try {
-    jev = await analyzeMessage(cleaned);
-  } catch (error) {
-    return errorResponse("jev", error instanceof JevError ? error.message : "We could not complete the risk analysis. Please try again.", error instanceof JevError ? error.status : 502);
-  }
-
-  // ---- Step 5: concern level ----
-  const concernLevel = scoreToConcernLevel(jev.riskScore);
-
-  // ---- Step 6: OpenAI explanation, with predefined fallback on failure ----
-  let explanation;
-  let usedFallbackExplanation = false;
-  try {
-    explanation = await explainResult({ extractedText: cleaned, jev, concernLevel });
-  } catch {
-    explanation = fallbackExplanation(concernLevel);
-    usedFallbackExplanation = true;
-  }
-
-  const result: AnalysisResult = {
-    concernLevel,
-    category: jev.category,
-    riskScore: jev.riskScore,
-    extractedText: cleaned,
-    jev,
-    explanation,
-    usedFallbackExplanation,
-  };
-
-  return NextResponse.json(result);
+  message: string;
 }
 
-function errorResponse(stage: AnalyzeError["stage"], message: string, status = 400) {
-  const body: AnalyzeError = { error: true, stage, message };
-  return NextResponse.json(body, { status });
+// ---------------------------------------------------------------------
+// JEV Result
+// ---------------------------------------------------------------------
+
+export interface JevResult {
+  // Main category returned by JEV.
+  category: ScamCategory;
+
+  // ---------------------------------------------------------------
+  // Convenience boolean values
+  // ---------------------------------------------------------------
+
+  urgency: boolean;
+
+  financialRequest: boolean;
+
+  sensitiveInformation: boolean;
+
+  impersonation: boolean;
+
+  suspiciousLink: boolean;
+
+  threat: boolean;
+
+  reward: boolean;
+
+  paymentChange: boolean;
+
+  // ---------------------------------------------------------------
+  // Raw JEV probabilities
+  // ---------------------------------------------------------------
+
+  scamProbability: number;
+
+  urgencyProbability: number;
+
+  financialRequestProbability: number;
+
+  sensitiveInformationProbability: number;
+
+  impersonationProbability: number;
+
+  suspiciousLinkProbability: number;
+
+  threatProbability: number;
+
+  rewardProbability: number;
+
+  paymentChangeProbability: number;
+
+  // ---------------------------------------------------------------
+  // Risk / confidence
+  // ---------------------------------------------------------------
+
+  riskScore: number;
+
+  confidence: number;
+
+  categoryConfidence: number;
+}
+
+// ---------------------------------------------------------------------
+// OpenAI Explanation
+// ---------------------------------------------------------------------
+
+export interface ScamWarningSign {
+  title: string;
+  explanation: string;
+}
+
+export interface ScamExplanation {
+  summary: string;
+
+  warningSigns: ScamWarningSign[];
+
+  recommendedActions: string[];
+}
+
+// ---------------------------------------------------------------------
+// Image Extraction
+// ---------------------------------------------------------------------
+
+export type ImageReadability =
+  | "clear"
+  | "unclear";
+
+export interface ImageExtractionResult {
+  extractedText: string;
+
+  readability: ImageReadability;
+
+  language?: string;
+
+  sourceType?: string;
+}
+
+// ---------------------------------------------------------------------
+// Final ScamShield Analysis Result
+// ---------------------------------------------------------------------
+
+export interface AnalysisResult {
+  // Final ScamShield concern classification.
+  concernLevel: ConcernLevel;
+
+  // Primary JEV category.
+  category: ScamCategory;
+
+  // Supporting JEV risk score.
+  riskScore: number;
+
+  // Text that was actually analyzed.
+  extractedText: string;
+
+  // Full structured JEV output.
+  jev: JevResult;
+
+  // OpenAI user-facing explanation.
+  explanation: ScamExplanation;
+
+  // True when OpenAI explanation failed and the app used
+  // predefined fallback recommendations instead.
+  usedFallbackExplanation: boolean;
 }
