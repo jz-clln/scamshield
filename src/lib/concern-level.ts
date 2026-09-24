@@ -1,8 +1,8 @@
 import { ConcernLevel } from "@/types/analysis";
 
-// Spec section 10 — risk score to concern level thresholds.
+// Postman rubric: 0 = none, 1 = minor, 2 = moderate, 3-4 = strong.
 export function scoreToConcernLevel(score: number): ConcernLevel {
-  if (score >= 2.0) return "high";
+  if (score >= 3.0) return "high";
   if (score >= 1.0) return "needs_verification";
   return "low";
 }
