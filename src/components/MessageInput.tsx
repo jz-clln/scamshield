@@ -10,20 +10,24 @@ interface MessageInputProps {
 
 export function MessageInput({ value, onChange, error }: MessageInputProps) {
   return (
-    <div>
+    <div className="message-field">
+      <label htmlFor="message-text" className="field-label">The message you want to check</label>
       <textarea
+        id="message-text"
+        aria-invalid={!!error}
+        aria-describedby={error ? "message-error message-count" : "message-count"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         maxLength={MAX_TEXT_LENGTH}
         rows={7}
-        placeholder="Paste the suspicious message here — e.g. Your account will be suspended today. Verify immediately using this link."
-        className="w-full rounded-xl border border-dagat/20 bg-white p-4 text-gabi placeholder:text-gabi/35 focus-visible:outline-none focus:border-dagat resize-none"
+        placeholder="Paste your SMS, chat, or email here…"
+        className="message-textarea"
       />
-      <div className="flex items-center justify-between mt-1.5">
-        <span className="text-xs text-gabi/45">
-          {value.length} / {MAX_TEXT_LENGTH}
+      <div className="field-meta">
+        <span id="message-count">
+          {value.length.toLocaleString()} / {MAX_TEXT_LENGTH.toLocaleString()} characters
         </span>
-        {error && <span className="text-sm text-peligro">{error}</span>}
+        {error && <span id="message-error" role="alert" className="text-peligro">{error}</span>}
       </div>
     </div>
   );

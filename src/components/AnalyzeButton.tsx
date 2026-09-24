@@ -1,3 +1,5 @@
+import { Icon } from "./Icon";
+
 interface AnalyzeButtonProps {
   onClick: () => void;
   loading: boolean;
@@ -10,9 +12,9 @@ export function AnalyzeButton({ onClick, loading, disabled }: AnalyzeButtonProps
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className="w-full rounded-xl bg-dagat text-white font-display font-medium py-3.5 transition-colors hover:bg-dagat-dark disabled:opacity-40 disabled:cursor-not-allowed"
+      className="primary-button"
     >
-      {loading ? "Analyzing..." : "Analyze message"}
+      <Icon name="sparkle" /><span>{loading ? "Analyzing…" : "Analyze message"}</span><Icon name="arrow" />
     </button>
   );
 }

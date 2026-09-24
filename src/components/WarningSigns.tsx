@@ -1,21 +1,19 @@
 import { WarningSign } from "@/types/analysis";
+import { Icon } from "./Icon";
 
 export function WarningSigns({ signs }: { signs: WarningSign[] }) {
   if (signs.length === 0) return null;
 
   return (
-    <div>
-      <h2 className="font-display font-semibold text-gabi mb-3">
-        Why ScamShield flagged this
-      </h2>
-      <ul className="space-y-3">
+    <section className="warning-section">
+      <h2>Signals worth a closer look <span>{signs.length.toString().padStart(2, "0")}</span></h2>
+      <ul className="warning-list">
         {signs.map((sign, i) => (
-          <li key={i} className="rounded-lg border border-dagat/10 bg-white p-4">
-            <p className="font-medium text-gabi">{sign.title}</p>
-            <p className="text-sm text-gabi/65 mt-1">{sign.explanation}</p>
+          <li key={i} className="warning-item enter-up" style={{ animationDelay: `${i * 80}ms` }}>
+            <span className="warning-icon"><Icon name="alert" width="18" height="18" /></span><div><h3>{sign.title}</h3><p>{sign.explanation}</p></div>
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }

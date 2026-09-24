@@ -1,21 +1,20 @@
+import { Icon } from "./Icon";
+
 export function RecommendationCard({ actions }: { actions: string[] }) {
   if (actions.length === 0) return null;
 
   return (
-    <div className="rounded-lg bg-dagat-light/60 p-5">
-      <h2 className="font-display font-semibold text-gabi mb-3">
-        What you should do
-      </h2>
-      <ol className="space-y-2">
+    <section className="recommendation-card">
+      <span className="eyebrow"><Icon name="shield" width="16" height="16" /> MOVE FORWARD WITH CARE</span>
+      <h2>Your next steps</h2>
+      <ol>
         {actions.map((action, i) => (
-          <li key={i} className="flex gap-3 text-sm text-gabi/80">
-            <span className="font-display font-semibold text-dagat shrink-0">
-              {i + 1}
-            </span>
+          <li key={i}>
+            <span className="action-number">{i + 1}</span>
             <span>{action}</span>
           </li>
         ))}
       </ol>
-    </div>
+    </section>
   );
 }

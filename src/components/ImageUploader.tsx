@@ -2,6 +2,7 @@
 
 import { useRef, useState, DragEvent } from "react";
 import { validateImageFile } from "@/lib/validation";
+import { Icon } from "./Icon";
 
 interface ImageUploaderProps {
   file: File | null;
@@ -72,20 +73,18 @@ export function ImageUploader({
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click(); }
         }}
-        className={`rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors ${
-          dragActive
-            ? "border-dagat bg-dagat-light/60"
-            : "border-dagat/25 bg-white hover:border-dagat/50"
-        }`}
+        className={`upload-zone ${dragActive ? "drag-active" : ""}`}
       >
+        <span className="upload-icon"><Icon name="upload" width="28" height="28" /></span>
         <p className="font-display text-gabi font-medium">
-          Drop a screenshot here
+          Choose a screenshot
         </p>
         <p className="text-sm text-gabi/55 mt-1">
-          or click to browse — PNG, JPG, or WEBP, up to 8MB
+          Tap to browse or drag it here
         </p>
+        <span className="upload-formats">PNG, JPG, WEBP · Up to 8 MB</span>
         <input
           ref={inputRef}
           type="file"
@@ -94,7 +93,7 @@ export function ImageUploader({
           onChange={(e) => handleFiles(e.target.files)}
         />
       </div>
-      {error && <p className="text-sm text-peligro mt-2">{error}</p>}
+      {error && <p role="alert" className="text-sm text-peligro mt-2">{error}</p>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, IBM_Plex_Sans } from "next/font/google";
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import "./global.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -29,52 +30,30 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${ibmPlexSans.variable}`}>
       <body className="font-body min-h-screen flex flex-col">
-        <header className="border-b border-dagat/10">
-          <div className="max-w-content mx-auto px-5 py-4 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <ShieldMark />
+        <a href="#main-content" className="skip-link">Skip to content</a>
+        <header className="site-header">
+          <div className="app-container header-inner">
+            <Link href="/" className="brand" aria-label="ScamShield home">
+              <span className="brand-mark"><Icon name="shield" width="24" height="24" /></span>
               <span className="font-display font-semibold text-lg tracking-tight text-gabi">
                 ScamShield
               </span>
             </Link>
-            <Link
-              href="/about"
-              className="text-sm text-gabi/60 hover:text-dagat transition-colors"
-            >
-              About
-            </Link>
+            <nav className="header-nav" aria-label="Main navigation"><Link href="/" className="nav-check">Check a message</Link><Link href="/about">About <Icon name="arrow" width="14" height="14" /></Link></nav>
+            <span className="header-caption"><span className="live-dot" /> Clarity before you act</span>
           </div>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main id="main-content" className="flex-1">{children}</main>
 
-        <footer className="border-t border-dagat/10 mt-16">
-          <div className="max-w-content mx-auto px-5 py-6 text-xs text-gabi/50 leading-relaxed">
-            ScamShield identifies warning signs. It does not independently confirm
-            whether a sender is fraudulent. Messages are analyzed for this check
-            only and are not stored by default.
+        <footer className="site-footer">
+          <div className="app-container footer-inner">
+            <span className="footer-brand"><Icon name="shield" width="17" height="17" /> ScamShield</span>
+            <p>AI insights to support your judgment. Always verify before you act.</p>
+            <Link href="/about">Privacy & limitations <Icon name="arrow" width="13" height="13" /></Link>
           </div>
         </footer>
       </body>
     </html>
-  );
-}
-
-function ShieldMark() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-      <path
-        d="M13 2 L23 6 V12.5 C23 18.5 18.7 22.6 13 24 C7.3 22.6 3 18.5 3 12.5 V6 Z"
-        fill="#0E4F4B"
-      />
-      <path
-        d="M8.5 13.2 L11.6 16.3 L18 9.5"
-        stroke="#F6F8F5"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
   );
 }
