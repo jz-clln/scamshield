@@ -42,7 +42,7 @@ The application combines screenshot text extraction, structured risk analysis, a
 - **Responsive interface** — a teal palette, clear typography, and reduced-motion styles.
 
 > [!IMPORTANT]
-> This repository is an early development foundation. The home page is available, but the API, result, and about files are not yet placed at their Next.js route paths. The complete browser analysis flow needs that wiring before it can run. See [development status](#development-status).
+> This repository is an early development foundation. The home, analysis API, result, and about routes are wired up. The default decision engine is a keyword heuristic; evaluation and production hardening remain on the [development checklist](#development-status).
 
 ## Quick start
 
@@ -78,7 +78,7 @@ Fill in the values you need in `.env.local`. Local environment files are exclude
 | `JEV_API_URL` | Sends message text to an external JEV analysis endpoint. | Uses the local keyword heuristic. |
 | `JEV_API_KEY` | Provides bearer authentication for the external JEV endpoint. | Sends the request without an authorization header. |
 
-The text-analysis functions can operate without API keys. Screenshot text extraction requires OpenAI configuration. These capabilities are subject to the route wiring described below.
+Text analysis can operate without API keys using the local heuristic and predefined guidance. Screenshot text extraction requires OpenAI configuration.
 
 ### 3. Start the development server
 
@@ -102,7 +102,7 @@ Open [localhost:3000](http://localhost:3000) to explore the home interface.
 
 **OpenAI sees → JEV decides → OpenAI explains.**
 
-The pipeline keeps text extraction, risk scoring, and explanation in separate modules. The diagram describes the implemented handler logic; exposing that handler as `/api/analyze` is still pending.
+The pipeline keeps text extraction, risk scoring, and explanation in separate modules. The `/api/analyze` endpoint connects these steps.
 
 ```mermaid
 flowchart LR
@@ -135,10 +135,10 @@ src/
 │   ├── layout.tsx             # Shared navigation, fonts, and footer
 │   ├── global.css             # Global styles and accessibility defaults
 │   ├── page.tsx               # Message and screenshot submission
-│   ├── results-page.tsx       # Result screen implementation
-│   ├── about-page.tsx         # About, limitations, and privacy content
+│   ├── result/page.tsx        # Result screen
+│   ├── about/page.tsx         # About, limitations, and privacy content
 │   └── api/
-│       └── analyze-route.ts   # Analysis handler implementation
+│       └── analyze/route.ts   # Analysis API endpoint
 ├── components/               # Input controls and result presentation
 ├── lib/
 │   ├── openai.ts             # Screenshot extraction and explanations
@@ -152,17 +152,17 @@ src/
 
 ## Development status
 
-The source includes the interface and analysis pipeline. The existing implementations still need these route locations:
+The application exposes these routes:
 
-| Current file | Required route file |
+| Route | Implementation |
 | --- | --- |
-| `src/app/api/analyze-route.ts` | `src/app/api/analyze/route.ts` |
-| `src/app/results-page.tsx` | `src/app/result/page.tsx` |
-| `src/app/about-page.tsx` | `src/app/about/page.tsx` |
+| `POST /api/analyze` | `src/app/api/analyze/route.ts` |
+| `/result` | `src/app/result/page.tsx` |
+| `/about` | `src/app/about/page.tsx` |
 
 ### Next milestones
 
-- [ ] Wire the analysis, result, and about routes.
+- [x] Wire the analysis, result, and about routes.
 - [ ] Validate the external JEV integration against a confirmed API contract.
 - [ ] Add server-side image validation and request rate limiting.
 - [ ] Add automated coverage for analysis behavior, failures, and the browser flow.
