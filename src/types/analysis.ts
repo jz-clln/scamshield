@@ -43,6 +43,9 @@ export interface JevResult {
   threat: boolean;
   reward: boolean;
   riskScore: number; // 0.0 - 4.0 (Postman/JEV rubric)
+  scamProbability?: number; // JEV's independent noul estimate, 0-1; absent in demo/older results
+  confidence?: number; // confidence in the risk-score answer, not scam probability
+  urgencyProbability?: number;
 }
 
 // Step 6 output — OpenAI explanation

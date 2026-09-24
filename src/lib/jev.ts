@@ -48,6 +48,7 @@ interface SystemOneResponse {
   answers: {
     scam_category: { type: "choice"; choice: string; probabilities: Record<string, number>; confidence: number };
     urgency_flag: { type: "noul"; noul: number };
+    scam_likelihood: { type: "noul"; noul: number };
     financial_request: { type: "noul"; noul: number };
     sensitive_information: { type: "noul"; noul: number };
     impersonation: { type: "noul"; noul: number };
@@ -90,6 +91,10 @@ export async function analyzeMessage(text: string): Promise<JevResult> {
       urgency_flag: {
         type: "noul",
         instructions: "Does the SMS use urgency, artificial deadlines, threats, immediate-action demands, or fear of negative consequences to pressure the recipient into acting quickly? Evaluate the presence of urgency tactics, not whether the message is actually fraudulent.",
+      },
+      scam_likelihood: {
+        type: "noul",
+        instructions: "Based only on the evidence in this message, is it an attempt to scam the recipient? Consider deception, fraudulent financial requests, credential theft, and impersonation. An unfamiliar sender, ordinary urgency, or unusual spelling alone is not enough. Do not assume facts absent from the message.",
       },
       financial_request: {
         type: "noul",
@@ -194,11 +199,15 @@ function toJevResult(data: SystemOneResponse): JevResult {
       a.risk_score.score < 0 || a.risk_score.score > 4) {
     throw new JevError("JEV returned an invalid category or risk score. Check the endpoint's response schema.");
   }
-  for (const key of ["urgency_flag", "financial_request", "sensitive_information", "impersonation", "suspicious_link", "threat", "reward"] as const) {
+  for (const key of ["scam_likelihood", "urgency_flag", "financial_request", "sensitive_information", "impersonation", "suspicious_link", "threat", "reward"] as const) {
     const answer = a[key];
     if (answer?.type !== "noul" || !Number.isFinite(answer.noul) || answer.noul < 0 || answer.noul > 1) {
       throw new JevError(`JEV returned an invalid answer for ${key}. Please try again.`);
     }
+  }
+
+  if (!Number.isFinite(a.risk_score.confidence) || a.risk_score.confidence < 0 || a.risk_score.confidence > 1) {
+    throw new JevError("JEV returned invalid risk-score confidence. Please try again.");
   }
 
   return {
@@ -211,6 +220,9 @@ function toJevResult(data: SystemOneResponse): JevResult {
     threat: a.threat.noul >= NOUL_THRESHOLD,
     reward: a.reward.noul >= NOUL_THRESHOLD,
     riskScore: a.risk_score.score,
+    scamProbability: a.scam_likelihood.noul,
+    confidence: a.risk_score.confidence,
+    urgencyProbability: a.urgency_flag.noul,
   };
 }
 

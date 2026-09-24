@@ -41,9 +41,9 @@ function configure() {
 function response() {
   const answers = {
     scam_category: { type: 'choice', choice: 'unknown' },
-    risk_score: { type: 'score', score: 2.77 },
+    risk_score: { type: 'score', score: 2.77, confidence: 0.83 },
   };
-  for (const key of ['urgency_flag', 'financial_request', 'sensitive_information', 'impersonation', 'suspicious_link', 'threat', 'reward']) {
+  for (const key of ['scam_likelihood', 'urgency_flag', 'financial_request', 'sensitive_information', 'impersonation', 'suspicious_link', 'threat', 'reward']) {
     answers[key] = { type: 'noul', noul: 0.1 };
   }
   return { answers };
@@ -66,6 +66,9 @@ test('sends Postman primary questions and preserves weighted 0-4 score', async (
   assert.equal(result.category, 'unknown');
   assert.equal(result.riskScore, 2.77);
   assert.equal(result.urgency, false);
+  assert.equal(result.scamProbability, 0.1);
+  assert.equal(result.confidence, 0.83);
+  assert.equal(result.urgencyProbability, 0.1);
 });
 
 test('rejects missing, nonnumeric, and out-of-range answers', async () => {
@@ -77,6 +80,10 @@ test('rejects missing, nonnumeric, and out-of-range answers', async () => {
     data => data.answers.risk_score.score = 5,
     data => data.answers.urgency_flag.noul = -1,
     data => data.answers.scam_category.choice = 'invented',
+    data => delete data.answers.scam_likelihood,
+    data => data.answers.scam_likelihood.noul = 1.2,
+    data => data.answers.risk_score.confidence = '0.8',
+    data => data.answers.risk_score.confidence = -0.1,
   ]) {
     const data = response();
     mutate(data);
