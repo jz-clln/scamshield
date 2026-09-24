@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractTextFromImage, explainResult, fallbackExplanation } from "@/lib/openai";
-import { analyzeMessage } from "@/lib/jev";
+import { analyzeMessage, JevError } from "@/lib/jev";
 import { scoreToConcernLevel } from "@/lib/concern-level";
 import { cleanMessageText, validateTextInput } from "@/lib/validation";
 import { AnalyzeRequest, AnalyzeError, AnalysisResult } from "@/types/analysis";
@@ -12,6 +12,14 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return errorResponse("validation", "Invalid request body.");
+  }
+
+  if (!body || typeof body !== "object" || !["text", "image"].includes(body.mode)) {
+    return errorResponse("validation", 'Use { "mode": "text", "text": "your message" } or image mode. The JEV Postman payload goes directly to TypeSafe, not /api/analyze.');
+  }
+  if ((body.mode === "text" && typeof body.text !== "string") ||
+      (body.mode === "image" && (typeof body.imageBase64 !== "string" || typeof body.mimeType !== "string"))) {
+    return errorResponse("validation", "Message text and image fields must be strings.");
   }
 
   // ---- Step 1/2: get message text, from image or direct paste ----
@@ -56,8 +64,8 @@ export async function POST(req: NextRequest) {
   let jev;
   try {
     jev = await analyzeMessage(cleaned);
-  } catch {
-    return errorResponse("jev", "We could not complete the risk analysis. Please try again.");
+  } catch (error) {
+    return errorResponse("jev", error instanceof JevError ? error.message : "We could not complete the risk analysis. Please try again.", error instanceof JevError ? error.status : 502);
   }
 
   // ---- Step 5: concern level ----
@@ -86,7 +94,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(result);
 }
 
-function errorResponse(stage: AnalyzeError["stage"], message: string) {
+function errorResponse(stage: AnalyzeError["stage"], message: string, status = 400) {
   const body: AnalyzeError = { error: true, stage, message };
-  return NextResponse.json(body, { status: 400 });
+  return NextResponse.json(body, { status });
 }
