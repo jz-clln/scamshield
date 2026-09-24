@@ -4,6 +4,11 @@ import { WarningSigns } from "./WarningSigns";
 import { RecommendationCard } from "./RecommendationCard";
 
 const CATEGORY_LABELS: Record<ScamCategory, string> = {
+  financial_fraud: "Financial Fraud",
+  prize_scam: "Prize Scam",
+  delivery_scam: "Delivery Scam",
+  legitimate: "No Scam Indicators Detected",
+  unknown: "Unknown Category",
   phishing: "Phishing",
   payment_request: "Suspicious Payment Request",
   impersonation: "Impersonation",
