@@ -63,9 +63,21 @@ export default function HomePage() {
     try {
       const body = mode === "text" ? { mode, text } : { mode, imageBase64: await fileToBase64(file as File), mimeType: (file as File).type };
       const res = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (controller.signal.aborted) return;
-      if (!res.ok) { setSubmitError(data.message ?? "Something went wrong. Please try again."); return; }
+      if (!res.ok) {
+        const fallback = res.status === 413
+          ? "That screenshot is too large. Choose a file up to 3 MB."
+          : res.status === 405
+            ? "The analysis service is unavailable. Please try again shortly. Your message is still here."
+            : `The analysis could not complete (${res.status}). Please try again. Your message is still here.`;
+        setSubmitError(typeof data?.message === "string" ? data.message : fallback);
+        return;
+      }
+      if (!data?.jev || !data?.explanation) {
+        setSubmitError("The analysis service returned an incomplete result. Please try again. Your message is still here.");
+        return;
+      }
       try { sessionStorage.setItem("scamshield:result", JSON.stringify(data)); }
       catch { setSubmitError("Your browser could not save the result for this tab. Allow site storage and try again."); return; }
       navigating = true;
