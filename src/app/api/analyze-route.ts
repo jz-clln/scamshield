@@ -1,0 +1,92 @@
+import { NextRequest, NextResponse } from "next/server";
+import { extractTextFromImage, explainResult, fallbackExplanation } from "@/lib/openai";
+import { analyzeMessage } from "@/lib/jev";
+import { scoreToConcernLevel } from "@/lib/concern-level";
+import { cleanMessageText, validateTextInput } from "@/lib/validation";
+import { AnalyzeRequest, AnalyzeError, AnalysisResult } from "@/types/analysis";
+
+export async function POST(req: NextRequest) {
+  let body: AnalyzeRequest;
+
+  try {
+    body = await req.json();
+  } catch {
+    return errorResponse("validation", "Invalid request body.");
+  }
+
+  // ---- Step 1/2: get message text, from image or direct paste ----
+  let extractedText = "";
+
+  if (body.mode === "image") {
+    if (!body.imageBase64 || !body.mimeType) {
+      return errorResponse("validation", "No image was provided.");
+    }
+
+    try {
+      const extracted = await extractTextFromImage(body.imageBase64, body.mimeType);
+
+      if (extracted.readability === "unclear" || !extracted.extractedText.trim()) {
+        return errorResponse(
+          "extraction",
+          "We could not clearly read this image. Upload a clearer screenshot or paste the message manually."
+        );
+      }
+
+      extractedText = extracted.extractedText;
+    } catch {
+      return errorResponse(
+        "extraction",
+        "We could not read the message right now. Please try again or paste the message manually."
+      );
+    }
+  } else {
+    extractedText = body.text ?? "";
+  }
+
+  // ---- Step 3: clean + validate ----
+  const cleaned = cleanMessageText(extractedText);
+  const validation = validateTextInput(cleaned);
+  if (!validation.valid) {
+    return errorResponse("validation", validation.error ?? "Invalid input.");
+  }
+
+  // ---- Step 4: JEV structured decision ----
+  // JEV is the source of truth for the risk decision. If it fails, we do
+  // not let OpenAI improvise a decision in its place (spec section 24).
+  let jev;
+  try {
+    jev = await analyzeMessage(cleaned);
+  } catch {
+    return errorResponse("jev", "We could not complete the risk analysis. Please try again.");
+  }
+
+  // ---- Step 5: concern level ----
+  const concernLevel = scoreToConcernLevel(jev.riskScore);
+
+  // ---- Step 6: OpenAI explanation, with predefined fallback on failure ----
+  let explanation;
+  let usedFallbackExplanation = false;
+  try {
+    explanation = await explainResult({ extractedText: cleaned, jev, concernLevel });
+  } catch {
+    explanation = fallbackExplanation(concernLevel);
+    usedFallbackExplanation = true;
+  }
+
+  const result: AnalysisResult = {
+    concernLevel,
+    category: jev.category,
+    riskScore: jev.riskScore,
+    extractedText: cleaned,
+    jev,
+    explanation,
+    usedFallbackExplanation,
+  };
+
+  return NextResponse.json(result);
+}
+
+function errorResponse(stage: AnalyzeError["stage"], message: string) {
+  const body: AnalyzeError = { error: true, stage, message };
+  return NextResponse.json(body, { status: 400 });
+}
